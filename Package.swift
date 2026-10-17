@@ -70,14 +70,6 @@ let package = Package(
         // Pinned to the 0.3.x minor: SMBClient is pre-1.0 with an actively
         // moving API, so allow patch updates but not a minor bump.
         .package(url: "https://github.com/kishikawakatsumi/SMBClient", .upToNextMinor(from: "0.3.1")),
-        // libdovi (Dolby Vision RPU parser/converter). Resolved over Git like
-        // FFmpegBuild so consumers (and Xcode Cloud) build without a sibling
-        // LibDovi checkout; the prebuilt xcframework needs no Rust at build time.
-        // Pinned to the minor for the same reason as FFmpegBuild above, with a
-        // worked example: 1.1.0 shipped a tvOS floor raise as a minor, SwiftPM
-        // floated every `from: "1.0.x"` consumer onto it and then failed on the
-        // floor instead of backing off, so all of 5.x stopped resolving.
-        .package(url: "https://github.com/superuser404notfound/LibDovi", .upToNextMinor(from: "2.1.0")),  // 2.1.0: dolby_vision 3.4.0, header additive only (two new CMv4.0 metadata entry points, nothing removed); 2.0.0: visionOS (xros) device + simulator slices, declared tvOS floor corrected to 17.0 (was published as 1.1.0, withdrawn: a floor raise is breaking and broke every 5.x pin that floated onto it); 1.0.2: iOS slices + x86_64 (Intel Macs)
         // TrueHD decoder that also decodes the Atmos object presentation (beds, objects, OAMD) for
         // `objectAudioRendering` (#731). The Rust `truehd` crate (Apache-2.0) behind a C API, prebuilt
         // as an xcframework like LibDovi so consumers need no Rust. Pinned to the minor for the same reason.
@@ -90,11 +82,14 @@ let package = Package(
         .package(url: "https://github.com/superuser404notfound/LibDTSX", .upToNextMinor(from: "2.0.0")),  // 2.0.0: DTSX.framework, dynamic, exporting only the C API, with dSYMs; NOTICE states the LGPL; same decoder, bit-identical output (#798); 1.0.1: rust_eh_personality weak (#752); dca 0.8.0 (harletty-bridge a717bae); the first two frames after a start or seek only prime the decoder
     ],
     targets: [
+        // libdovi's C API without its library: the host links the functions, which Mavio's
+        // shared core exports (Sources/Dovi/Dovi.c). aetherctl and the tests do not link here.
+        .target(name: "Dovi", path: "Sources/Dovi"),
         .target(
             name: "AetherEngine",
             dependencies: [
                 .product(name: "AetherFFmpegBuild", package: "FFmpegBuild"),
-                .product(name: "Dovi", package: "LibDovi"),
+                "Dovi",
                 .product(name: "TrueHD", package: "LibTrueHD", condition: .when(traits: ["TrueHDObjectAudio"])),
                 .product(name: "DTSX", package: "LibDTSX", condition: .when(traits: ["DTSXObjectAudio"])),
             ],
